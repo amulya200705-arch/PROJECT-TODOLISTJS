@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en" ng-app="taskApp">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bloom Ultimate Planner | AngularJS</title>
+
+    <!-- Google Fonts & FontAwesome Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Fredoka:wght@500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- External CSS stylesheet link -->
+    <link rel="stylesheet" href="style.css">
+
+    <!-- AngularJS 1.8.2 CDN -->
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.2/angular.min.js"></script>
+</head>
+<body ng-controller="PlannerController">
+
+    <div class="container">
+        <!-- Header -->
+        <div class="app-header">
+            <h1><i class="fa-solid fa-seedling"></i> Bloom Ultimate Planner</h1>
+            <p>Your Comprehensive Life, Study & Productivity Suite</p>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="nav-tabs">
+            <button class="nav-tab" ng-class="{active: currentTab === 'tasks'}" ng-click="switchTab('tasks')"><i class="fa-solid fa-list-check"></i> Tasks & Daily</button>
+            <button class="nav-tab" ng-class="{active: currentTab === 'analytics'}" ng-click="switchTab('analytics')"><i class="fa-solid fa-chart-line"></i> Analytics & Reports</button>
+            <button class="nav-tab" ng-class="{active: currentTab === 'calendar'}" ng-click="switchTab('calendar')"><i class="fa-solid fa-calendar-days"></i> Calendar</button>
+            <button class="nav-tab" ng-class="{active: currentTab === 'focus'}" ng-click="switchTab('focus')"><i class="fa-solid fa-brain"></i> Focus & Pomodoro</button>
+            <button class="nav-tab" ng-class="{active: currentTab === 'settings'}" ng-click="switchTab('settings')"><i class="fa-solid fa-gear"></i> Backup & Data</button>
+        </div>
+
+        <!-- TAB 1: TASKS & DAILY PLANNER -->
+        <div class="tab-content" ng-class="{active: currentTab === 'tasks'}">
+            <!-- Banners -->
+            <div class="top-banner-grid">
+                <div class="banner-card banner-notification" ng-show="getPendingCount() > 0">
+                    <i class="fa-solid fa-bell"></i>
+                    <span>Alert: You have {{ getPendingCount() }} pending task(s) waiting!</span>
+                </div>
+                <div class="banner-card banner-suggestion">
+                    <i class="fa-solid fa-lightbulb"></i>
+                    <span>Smart Tip: {{ smartSuggestion }}</span>
+                </div>
+            </div>
+
+            <!-- Task Input Form -->
+            <form class="input-card" ng-submit="saveTask()">
+                <div class="input-row-top">
+                    <input type="text" ng-model="taskForm.title" placeholder="✨ Enter task title..." required>
+                </div>
+                <textarea ng-model="taskForm.description" placeholder="Add detailed task description (optional)..." style="height: 45px;"></textarea>
+                <div class="input-row-bottom">
+                    <select ng-model="taskForm.priority">
+                        <option value="High">🔴 High Priority</option>
+                        <option value="Medium" selected>🟡 Medium Priority</option>
+                        <option value="Low">🟢 Low Priority</option>
+                    </select>
+                    <select ng-model="taskForm.category">
+                        <option value="Personal">🌸 Personal</option>
+                        <option value="Work">💼 Work</option>
+                        <option value="Academics">📚 Academics</option>
+                        <option value="Shopping">🛒 Shopping</option>
+                        <option value="Fitness">🏋️ Fitness</option>
+                    </select>
+                    <select ng-model="taskForm.recurrence">
+                        <option value="None">Recurring: None</option>
+                        <option value="Daily">Daily</option>
+                        <option value="Weekly">Weekly</option>
+                        <option value="Monthly">Monthly</option>
+                    </select>
+                    <input type="date" ng-model="taskForm.dueDate">
+                    <button type="submit" class="add-btn"><i class="fa-solid fa-plus"></i> {{ isEditing ? 'Update' : 'Add' }}</button>
+                </div>
+            </form>
+
+            <!-- Progress Bar -->
+            <div class="progress-card">
+                <div class="progress-header">
+                    <span><i class="fa-solid fa-chart-pie"></i> Productivity Overview</span>
+                    <span>{{ getCompletedCount() }} of {{ tasks.length }} completed ({{ getProgressPercent() }}%)</span>
+                </div>
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill" ng-style="{ width: getProgressPercent() + '%' }"></div>
+                </div>
+            </div>
+
+            <!-- Filter & Search Toolbar -->
+            <div class="filter-toolbar">
+                <div class="category-pills">
+                    <button type="button" class="pill-btn" ng-class="{active: selectedCategory === 'All'}" ng-click="setCategory('All')">All</button>
+                    <button type="button" class="pill-btn" ng-class="{active: selectedCategory === 'Personal'}" ng-click="setCategory('Personal')">🌸 Personal</button>
+                    <button type="button" class="pill-btn" ng-class="{active: selectedCategory === 'Work'}" ng-click="setCategory('Work')">💼 Work</button>
+                    <button type="button" class="pill-btn" ng-class="{active: selectedCategory === 'Academics'}" ng-click="setCategory('Academics')">📚 Academics</button>
+                    <button type="button" class="pill-btn" ng-class="{active: selectedCategory === 'Shopping'}" ng-click="setCategory('Shopping')">🛒 Shopping</button>
+                    <button type="button" class="pill-btn" ng-class="{active: selectedCategory === 'Fitness'}" ng-click="setCategory('Fitness')">🏋️ Fitness</button>
+                </div>
+                <input type="text" class="search-input" ng-model="searchQuery" placeholder="🔍 Search tasks..." style="padding: 6px 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.8rem; outline: none;">
+            </div>
+
+            <!-- Mini Widgets Row -->
+            <div class="tools-grid">
+                <!-- Focus Mini Widget -->
+                <div class="tool-card" style="text-align: center;">
+                    <h3><i class="fa-solid fa-stopwatch"></i> Quick Pomodoro</h3>
+                    <div style="font-family: 'Fredoka', cursive; font-size: 1.4rem; color: var(--primary); margin: 4px 0;">
+                        {{ formatTime(timerSeconds) }}
+                    </div>
+                    <div style="display: flex; gap: 4px; justify-content: center;">
+                        <button type="button" class="add-btn" style="padding: 2px 8px; font-size: 0.7rem;" ng-click="startTimer()" ng-disabled="timerRunning">Start</button>
+                        <button type="button" class="add-btn" style="padding: 2px 8px; font-size: 0.7rem; background: #ed8936;" ng-click="pauseTimer()">Pause</button>
+                        <button type="button" class="add-btn" style="padding: 2px 8px; font-size: 0.7rem; background: #e53e3e;" ng-click="resetTimer()">Reset</button>
+                    </div>
+                </div>
+
+                <!-- Daily Habits Widget -->
+                <div class="tool-card">
+                    <h3><i class="fa-solid fa-fire" style="color: #ed8936;"></i> Daily Habits</h3>
+                    <form ng-submit="addHabit()" style="display: flex; gap: 4px; margin-bottom: 4px;">
+                        <input type="text" ng-model="newHabitName" placeholder="New habit..." style="flex:1; padding: 3px 6px; font-size: 0.75rem; border: 1px solid #ddd; border-radius: 6px;">
+                        <button type="submit" class="add-btn" style="padding: 3px 6px; font-size: 0.7rem;">+</button>
+                    </form>
+                    <div style="max-height: 55px; overflow-y: auto; font-size: 0.75rem;">
+                        <div ng-repeat="habit in habits" style="display: flex; justify-content: space-between; margin-bottom: 2px;">
+                            <span>🔥 {{ habit.name }}</span>
+                            <i class="fa-solid fa-xmark" style="color: #e53e3e; cursor: pointer;" ng-click="deleteHabit(habit.id)"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Notes Widget -->
+                <div class="tool-card">
+                    <h3><i class="fa-solid fa-note-sticky" style="color: #ecc94b;"></i> Quick Notes</h3>
+                    <textarea ng-model="quickNotes" ng-change="saveData()" placeholder="Jot down notes..." style="width: 100%; height: 60px; border: 1px solid #edf2f7; border-radius: 6px; padding: 4px; font-size: 0.75rem; resize: none; outline: none;"></textarea>
+                </div>
+            </div>
+
+            <!-- Two-Column Task Lists: Pending vs Completed -->
+            <div class="lists-grid">
+                <!-- Pending Column -->
+                <div class="task-card-column">
+                    <h3><i class="fa-solid fa-clock-rotate-left" style="color: #ed8936;"></i> Pending Tasks</h3>
+                    <ul class="task-list">
+                        <li class="task-item {{ task.priority.toLowerCase() }}" ng-class="{'overdue': isOverdue(task.dueDate)}" 
+                            ng-repeat="task in tasks | filter:{completed: false} | filter:categoryFilter | filter:searchQuery track by task.id">
+                            <div class="task-left">
+                                <input type="checkbox" style="margin-top: 3px;" ng-model="task.completed" ng-change="saveData()">
+                                <div class="task-details">
+                                    <span class="task-title">{{ task.title }}</span>
+                                    <span class="task-desc" ng-if="task.description">{{ task.description }}</span>
+                                    <div style="display: flex; gap: 6px; align-items: center; margin-top: 3px;">
+                                        <span class="badge badge-{{ task.priority.toLowerCase() }}">{{ task.priority }}</span>
+                                        <span style="font-size: 0.65rem; background: #edf2f7; padding: 1px 5px; border-radius: 4px;">{{ task.category }}</span>
+                                        <span style="font-size: 0.65rem; color: #e53e3e;" ng-if="task.dueDate"><i class="fa-regular fa-calendar"></i> {{ task.dueDate | date:'MMM d' }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="action-icons">
+                                <button type="button" class="icon-btn" ng-click="editTask(task)" title="Edit"><i class="fa-solid fa-pen"></i></button>
+                                <button type="button" class="icon-btn delete" ng-click="confirmDelete(task.id)" title="Delete"><i class="fa-solid fa-trash"></i></button>
+                            </div>
+                        </li>
+                    </ul>
+                    <p style="font-size: 0.8rem; color: #a0aec0; text-align: center; margin-top: 30px;" ng-show="(tasks | filter:{completed: false} | filter:categoryFilter | filter:searchQuery).length === 0">No pending tasks! 🎉</p>
+                </div>
+
+                <!-- Completed Column -->
+                <div class="task-card-column">
+                    <h3><i class="fa-solid fa-circle-check" style="color: #48bb78;"></i> Completed Tasks</h3>
+                    <ul class="task-list">
+                        <li class="task-item completed {{ task.priority.toLowerCase() }}" 
+                            ng-repeat="task in tasks | filter:{completed: true} | filter:categoryFilter | filter:searchQuery track by task.id">
+                            <div class="task-left">
+                                <input type="checkbox" style="margin-top: 3px;" ng-model="task.completed" ng-change="saveData()">
+                                <div class="task-details">
+                                    <span class="task-title">{{ task.title }}</span>
+                                    <div style="display: flex; gap: 6px; align-items: center; margin-top: 3px;">
+                                        <span class="badge badge-{{ task.priority.toLowerCase() }}">{{ task.priority }}</span>
+                                        <span style="font-size: 0.65rem; background: #edf2f7; padding: 1px 5px; border-radius: 4px;">{{ task.category }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="action-icons">
+                                <button type="button" class="icon-btn delete" ng-click="confirmDelete(task.id)" title="Delete"><i class="fa-solid fa-trash"></i></button>
+                            </div>
+                        </li>
+                    </ul>
+                    <p style="font-size: 0.8rem; color: #a0aec0; text-align: center; margin-top: 30px;" ng-show="(tasks | filter:{completed: true} | filter:categoryFilter | filter:searchQuery).length === 0">No completed tasks yet.</p>
+                </div>
+            </div>
+
+            <!-- Footer Action Buttons -->
+            <div class="footer-actions">
+                <button type="button" class="footer-btn btn-action" ng-click="markAllDone()">Mark All Done</button>
+                <button type="button" class="footer-btn btn-danger" ng-click="clearCompleted()">Clear Completed</button>
+            </div>
+        </div>
+
+        <!-- TAB 2: ANALYTICS & REPORTS -->
+        <div class="tab-content" ng-class="{active: currentTab === 'analytics'}">
+            <h3 style="color: var(--primary); margin-bottom: 12px;"><i class="fa-solid fa-chart-line"></i> Productivity Reports & History</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                <div class="tool-card" style="text-align: center; padding: 20px;">
+                    <h2 style="font-size: 2.5rem; color: var(--primary);">{{ getCompletedCount() }}</h2>
+                    <p style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">Total Tasks Completed</p>
+                </div>
+                <div class="tool-card" style="text-align: center; padding: 20px;">
+                    <h2 style="font-size: 2.5rem; color: #38a169;">{{ getProgressPercent() }}%</h2>
+                    <p style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">Overall Efficiency Rate</p>
+                </div>
+            </div>
+            <div class="tool-card">
+                <h4 style="margin-bottom: 10px;">📋 Task History & Activity Log</h4>
+                <ul style="list-style: none; font-size: 0.82rem; max-height: 180px; overflow-y: auto;">
+                    <li ng-repeat="item in taskHistory track by $index" style="padding: 6px 0; border-bottom: 1px solid #edf2f7;">
+                        <i class="fa-solid fa-circle-dot" style="font-size: 0.5rem; color: var(--primary); margin-right: 6px;"></i> {{ item }}
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- TAB 3: CALENDAR VIEW -->
+        <div class="tab-content" ng-class="{active: currentTab === 'calendar'}">
+            <h3 style="color: var(--primary); margin-bottom: 12px;"><i class="fa-solid fa-calendar-days"></i> Monthly Calendar View</h3>
+            <div style="background: white; padding: 15px; border-radius: 16px; border: 1px solid #edf2f7;">
+                <div style="text-align: center; font-weight: 700; margin-bottom: 15px; color: #4a5568;">November 2026</div>
+                <div class="calendar-grid">
+                    <div class="cal-day" ng-repeat="day in calendarDays" ng-class="{'has-task': day === 10 || day === 15 || day === 22}">
+                        {{ day }}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 4: FOCUS & POMODORO -->
+        <div class="tab-content" ng-class="{active: currentTab === 'focus'}">
+            <div class="tool-card" style="text-align: center; max-width: 450px; margin: 0 auto; padding: 30px;">
+                <h3 style="font-size: 1.2rem; margin-bottom: 10px;"><i class="fa-solid fa-brain"></i> Full Focus Mode & Pomodoro</h3>
+                <div style="font-family: 'Fredoka', cursive; font-size: 4rem; color: var(--primary); margin: 20px 0;">
+                    {{ formatTime(timerSeconds) }}
+                </div>
+                <div style="display: flex; gap: 10px; justify-content: center;">
+                    <button type="button" class="add-btn" style="padding: 10px 24px;" ng-click="startTimer()" ng-disabled="timerRunning">Start Focus</button>
+                    <button type="button" class="add-btn" style="padding: 10px 24px; background: #ed8936;" ng-click="pauseTimer()">Pause</button>
+                    <button type="button" class="add-btn" style="padding: 10px 24px; background: #e53e3e;" ng-click="resetTimer()">Reset</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 5: BACKUP & DATA -->
+        <div class="tab-content" ng-class="{active: currentTab === 'settings'}">
+            <h3 style="color: var(--primary); margin-bottom: 12px;"><i class="fa-solid fa-gear"></i> Data Management & Export</h3>
+            <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                <button type="button" class="add-btn" ng-click="exportToCSV()"><i class="fa-solid fa-file-csv"></i> Export Tasks to CSV</button>
+                <button type="button" class="add-btn" style="background: #3182ce;" ng-click="backupData()"><i class="fa-solid fa-download"></i> Backup JSON</button>
+            </div>
+        </div>
+
+        <!-- Delete Confirmation Modal -->
+        <div class="modal-overlay" ng-show="showDeleteModal">
+            <div class="modal-card" style="text-align: center;">
+                <h3 style="color: #e53e3e; margin-bottom: 10px;">Confirm Deletion</h3>
+                <p style="font-size: 0.88rem; margin-bottom: 20px;">Are you sure you want to delete this task?</p>
+                <div style="display: flex; gap: 10px; justify-content: center;">
+                    <button type="button" class="footer-btn btn-danger" ng-click="executeDelete()">Yes, Delete</button>
+                    <button type="button" class="footer-btn btn-action" ng-click="cancelDelete()">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- External JavaScript Link -->
+    <script src="app.js"></script>
+</body>
+</html>
